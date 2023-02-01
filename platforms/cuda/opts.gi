@@ -372,6 +372,7 @@ tfcall_hockney_130 := function(conf, t)
     # promote with default conf rules
     tt := _promote1(Copy(t));
     if ObjId(tt) = TFCall then
+        _tt := tt.params[1];
         if ObjId(_tt) = IOPrunedMDRConv  and _tt.params[1] = [130,130,130] then
             _conf := FFTXGlobals.confHockneyMlcCUDADevice();
             _opts := FFTXGlobals.getOpts(_conf);
@@ -400,6 +401,7 @@ tfcall_hockney_general := function(conf, t)
     # promote with default conf rules
     tt := _promote1(Copy(t));
     if ObjId(tt) = TFCall then
+        _tt := tt.params[1];
          if ObjId(_tt) = IOPrunedMDRConv then
             _conf := FFTXGlobals.confMDRConvCUDADevice();
             _opts := FFTXGlobals.getOpts(_conf);
