@@ -8,6 +8,6 @@ Include(prune);
 Include(rconv);
 #Include(codegen);
 #Include(unparser);
-Include(opts_classes);
 Include(rewrite);
+Include(opts_derivation);
 Include(opts);
