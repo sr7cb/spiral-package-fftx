@@ -52,43 +52,113 @@ Class(PatternMatcher, AttrMixin, rec(
         fi;
     end,       
 
-    # detect batch of DFT/PRDFT
-    batch_dft_prdft := meth(self, conf, t) 
-    local _conf, _opts;
-    # detect batch of DFT/PRDFT
+
+#     conf_opts_batch := [let(_conf := FFTXGlobals.confBatchFFTCUDADevice(), _opts := FFTXGlobals.getOpts(_conf), _opts)];
+
+#     conf_opts_batch_dft_prdft := [let(_conf := FFTXGlobals.confBatchFFTCUDADevice(), _opts := FFTXGlobals.getOpts(_conf), _opts.breakdownRules.TTwiddle := [ TTwiddle_Tw1 ],
+#                 _opts.tags := [ASIMTKernelFlag(ASIMTGridDimX), ASIMTBlockDimY, ASIMTBlockDimX],
+#                 _opts.globalUnrolling := 2*self._thold() + 1,
+#                 _opts.breakdownRules.TTensorI := [CopyFields(IxA_L_split, rec(switch := true)), 
+#                     fftx.platforms.cuda.L_IxA_SIMT, fftx.platforms.cuda.IxA_L_SIMT]::_opts.breakdownRules.TTensorI,
+#                 _opts.breakdownRules.DFT := [CopyFields(DFT_tSPL_CT, rec(switch := true, 
+#                     filter := e-> When(e[1]*e[2] <= self._thold()^2, e[1] <= self._thold() and e[2] <= self._thold(), e[1] <= self._thold() and e[2] >= self._thold())))]::_opts.breakdownRules.DFT),
+#                     _opts.unparser.simt_synccluster := _opts.unparser.simt_syncblock,
+#                 _opts.postProcessSums := (s, opts) -> let(s1 := ApplyStrategy(s, [ MergedRuleSet(RulesFuncSimp, RulesSums, RulesSIMTFission) ], BUA, opts),
+#                     When(Collect(t, PRDFT)::Collect(t, IPRDFT) = [], 
+#                         FixUpCUDASigmaSPL(FixUpCUDASigmaSPL_3Stage(s1, opts), opts),
+#                         FixUpCUDASigmaSPL_3Stage_Real(s1, opts))), 
+#                 _opts.postProcessCode := (c, opts) -> FixUpTeslaV_Code(c, opts),    
+# #                _opts.postProcessCode := (c, opts) -> FixUpTeslaV_Code(PingPong_3Stages(c, opts), opts);    
+#                 _opts.fixUpTeslaV_Code := true,
+#                 _opts.operations.Print := s -> Print("<FFTX CUDA HPC Batch DFT options record>"), _opts];
+    
+#     conf_opts_3d_batch := [let( _conf := FFTXGlobals.confFFTCUDADevice(),_opts := FFTXGlobals.getOpts(_conf), _opts)];
+
+#     conf_opts_3d_batch_ := [let(_conf := FFTXGlobals.confFFTCUDADevice(),_opts := FFTXGlobals.getOpts(_conf), 
+#                             )];
+
+    batch_dft_prdft_cond := meth(self, conf, t) 
         if ((Length(Collect(t, TTensorInd)) >= 1) or let(lst := Collect(t, TTensorI), (Length(lst) >= 1) and ForAll(lst, l->l.params[2] > 1))) and 
             ((Length(Collect(t, DFT)) = 1) or (Length(Collect(t, PRDFT)) = 1) or (Length(Collect(t, IPRDFT)) = 1)) then
-            _conf := FFTXGlobals.confBatchFFTCUDADevice();
-            _opts := FFTXGlobals.getOpts(_conf);
-
-            # opts for high performance CUDA cuFFT
-            if ForAll(Flat(List(Collect(t, @(1, [DFT, PRDFT, IPRDFT])), j-> j.params[1])), i -> i in self._HPCSupportedSizesCUDA())  then
-                _opts.breakdownRules.TTwiddle := [ TTwiddle_Tw1 ];
-                _opts.tags := [ASIMTKernelFlag(ASIMTGridDimX), ASIMTBlockDimY, ASIMTBlockDimX];
-                
-                _opts.globalUnrolling := 2*self._thold() + 1;
-
-                _opts.breakdownRules.TTensorI := [CopyFields(IxA_L_split, rec(switch := true)), 
-                    fftx.platforms.cuda.L_IxA_SIMT, fftx.platforms.cuda.IxA_L_SIMT]::_opts.breakdownRules.TTensorI;
-                _opts.breakdownRules.DFT := [CopyFields(DFT_tSPL_CT, rec(switch := true, 
-                    filter := e-> When(e[1]*e[2] <= self._thold()^2, e[1] <= self._thold() and e[2] <= self._thold(), e[1] <= self._thold() and e[2] >= self._thold())))]::_opts.breakdownRules.DFT;
-                
-                _opts.unparser.simt_synccluster := _opts.unparser.simt_syncblock;
-                _opts.postProcessSums := (s, opts) -> let(s1 := ApplyStrategy(s, [ MergedRuleSet(RulesFuncSimp, RulesSums, RulesSIMTFission) ], BUA, opts),
-                    When(Collect(t, PRDFT)::Collect(t, IPRDFT) = [], 
-                        FixUpCUDASigmaSPL(FixUpCUDASigmaSPL_3Stage(s1, opts), opts),
-                        FixUpCUDASigmaSPL_3Stage_Real(s1, opts))); 
-                _opts.postProcessCode := (c, opts) -> FixUpTeslaV_Code(c, opts);    
-#                _opts.postProcessCode := (c, opts) -> FixUpTeslaV_Code(PingPong_3Stages(c, opts), opts);    
-                _opts.fixUpTeslaV_Code := true;
-
-                _opts.operations.Print := s -> Print("<FFTX CUDA HPC Batch DFT options record>");
-
-            fi;
-            return [true, _opts];
+            return true;
+        else
+            return false;
         fi;
-        return [false, false];
     end,
+
+    
+    batch_dft_prdft_cuda_cond := meth(self, conf, t)
+        if ((Length(Collect(t, TTensorInd)) >= 1) or let(lst := Collect(t, TTensorI), (Length(lst) >= 1) and ForAll(lst, l->l.params[2] > 1))) and 
+            ((Length(Collect(t, DFT)) = 1) or (Length(Collect(t, PRDFT)) = 1) or (Length(Collect(t, IPRDFT)) = 1)) then 
+            if ForAll(Flat(List(Collect(t, @(1, [DFT, PRDFT, IPRDFT])), j-> j.params[1])), i -> i in self._HPCSupportedSizesCUDA())  then
+                return true;
+            else
+                return false;
+            fi;
+        else
+            return false;
+        fi;
+    end,
+    
+    3d_dft_batchdft_cond := meth(self, conf, t)
+        local _tt, _conf, _opts;
+        _tt := Collect(t, MDDFT)::Collect(t, MDPRDFT)::Collect(t, IMDPRDFT)::Collect(t, PrunedMDPRDFT)::Collect(t, PrunedIMDPRDFT);
+        if Length(_tt) = 1 and Length(_tt[1].params[1]) = 3 then
+            return true;
+        else 
+            return false;
+        fi; 
+    end,
+
+    3d_dft_batchdft_cuda_cond := meth(self, conf, t)
+        local _tt, _conf, _opts;
+        _tt := Collect(t, MDDFT)::Collect(t, MDPRDFT)::Collect(t, IMDPRDFT)::Collect(t, PrunedMDPRDFT)::Collect(t, PrunedIMDPRDFT);
+        if Length(_tt) = 1 and Length(_tt[1].params[1]) = 3 then
+            if ForAll(_tt[1].params[1], i-> i in self._HPCSupportedSizesCUDA()) then
+                return true;
+            else
+                return false;
+            fi;
+            return false;
+        fi;
+    end,
+#     # detect batch of DFT/PRDFT
+#     batch_dft_prdft := meth(self, conf, t) 
+#     local _conf, _opts;
+#     # detect batch of DFT/PRDFT
+#         if ((Length(Collect(t, TTensorInd)) >= 1) or let(lst := Collect(t, TTensorI), (Length(lst) >= 1) and ForAll(lst, l->l.params[2] > 1))) and 
+#             ((Length(Collect(t, DFT)) = 1) or (Length(Collect(t, PRDFT)) = 1) or (Length(Collect(t, IPRDFT)) = 1)) then
+#             _conf := FFTXGlobals.confBatchFFTCUDADevice();
+#             _opts := FFTXGlobals.getOpts(_conf);
+
+#             # opts for high performance CUDA cuFFT
+#             if ForAll(Flat(List(Collect(t, @(1, [DFT, PRDFT, IPRDFT])), j-> j.params[1])), i -> i in self._HPCSupportedSizesCUDA())  then
+#                 _opts.breakdownRules.TTwiddle := [ TTwiddle_Tw1 ];
+#                 _opts.tags := [ASIMTKernelFlag(ASIMTGridDimX), ASIMTBlockDimY, ASIMTBlockDimX];
+                
+#                 _opts.globalUnrolling := 2*self._thold() + 1;
+
+#                 _opts.breakdownRules.TTensorI := [CopyFields(IxA_L_split, rec(switch := true)), 
+#                     fftx.platforms.cuda.L_IxA_SIMT, fftx.platforms.cuda.IxA_L_SIMT]::_opts.breakdownRules.TTensorI;
+#                 _opts.breakdownRules.DFT := [CopyFields(DFT_tSPL_CT, rec(switch := true, 
+#                     filter := e-> When(e[1]*e[2] <= self._thold()^2, e[1] <= self._thold() and e[2] <= self._thold(), e[1] <= self._thold() and e[2] >= self._thold())))]::_opts.breakdownRules.DFT;
+                
+#                 _opts.unparser.simt_synccluster := _opts.unparser.simt_syncblock;
+#                 _opts.postProcessSums := (s, opts) -> let(s1 := ApplyStrategy(s, [ MergedRuleSet(RulesFuncSimp, RulesSums, RulesSIMTFission) ], BUA, opts),
+#                     When(Collect(t, PRDFT)::Collect(t, IPRDFT) = [], 
+#                         FixUpCUDASigmaSPL(FixUpCUDASigmaSPL_3Stage(s1, opts), opts),
+#                         FixUpCUDASigmaSPL_3Stage_Real(s1, opts))); 
+#                 _opts.postProcessCode := (c, opts) -> FixUpTeslaV_Code(c, opts);    
+# #                _opts.postProcessCode := (c, opts) -> FixUpTeslaV_Code(PingPong_3Stages(c, opts), opts);    
+#                 _opts.fixUpTeslaV_Code := true;
+
+#                 _opts.operations.Print := s -> Print("<FFTX CUDA HPC Batch DFT options record>");
+
+#             fi;
+#             return [true, _opts];
+#         fi;
+#         return [false, false];
+#     end,
 
     #3D DFT/Batch DFT
     3d_dft_batchdft := meth(self, conf, t)
