@@ -77,14 +77,26 @@ Class(PatternMatcher, AttrMixin, rec(
 #     conf_opts_3d_batch_ := [let(_conf := FFTXGlobals.confFFTCUDADevice(),_opts := FFTXGlobals.getOpts(_conf), 
 #                             )];
 
+    ttensorI_check := (t) -> ((Length(Collect(t, TTensorInd)) >= 1) or let(lst := Collect(t, TTensorI), (Length(lst) >= 1) and ForAll(lst, l->l.params[2] > 1))),
+    dft_prdft_iprdft := (t) -> ((Length(Collect(t, DFT)) = 1) or (Length(Collect(t, PRDFT)) = 1) or (Length(Collect(t, IPRDFT)) = 1)),
+    dft_prdft_iprdft_check_sizes := (t) -> ForAll(Flat(List(Collect(t, @(1, [DFT, PRDFT, IPRDFT])), j-> j.params[1])), i -> i in self._HPCSupportedSizesCUDA()),
+
     batch_dft_prdft_cond := meth(self, conf, t) 
-        if ((Length(Collect(t, TTensorInd)) >= 1) or let(lst := Collect(t, TTensorI), (Length(lst) >= 1) and ForAll(lst, l->l.params[2] > 1))) and 
-            ((Length(Collect(t, DFT)) = 1) or (Length(Collect(t, PRDFT)) = 1) or (Length(Collect(t, IPRDFT)) = 1)) then
+        if ttensorI_check(t) and dft_prdft_iprdft(t) then
             return true;
         else
             return false;
         fi;
     end,
+
+    # batch_dft_prdft_cond := meth(self, conf, t) 
+    #     if ((Length(Collect(t, TTensorInd)) >= 1) or let(lst := Collect(t, TTensorI), (Length(lst) >= 1) and ForAll(lst, l->l.params[2] > 1))) and 
+    #         ((Length(Collect(t, DFT)) = 1) or (Length(Collect(t, PRDFT)) = 1) or (Length(Collect(t, IPRDFT)) = 1)) then
+    #         return true;
+    #     else
+    #         return false;
+    #     fi;
+    # end,
 
     
     batch_dft_prdft_cuda_cond := meth(self, conf, t)
